@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <h1 class="text-3xl font-bold underline text-center text-red-500 my-10">
+      Miswag 🎉 JS Bridge Tester
+    </h1>
+
+    <h2
+      id="js-bridge-status"
+      class="text-center text-2xl font-medium my-12"
+    ></h2>
+
+    <div
+      id="output-area"
+      class="text-center text-3xl font-medium my-4 min-h-12"
+    ></div>
+
+    <div class="grid grid-cols-1 gap-4 md:w-1/2 w-full mx-auto my-0">
+      <button
+        class="px-4 py-2 font-semibold text-sm bg-red-300 text-white rounded-full shadow-sm"
+        onclick="firstJSBridgeListener('getCustomerInformation')"
+      >
+        Get the Customer Information
+      </button>
+      <button
+        class="px-4 py-2 font-semibold text-sm bg-red-300 text-white rounded-full shadow-sm"
+        onclick="firstJSBridgeListener('getTheme')"
+      >
+        Get Theme
+      </button>
+      <button
+        class="px-4 py-2 font-semibold text-sm bg-red-300 text-white rounded-full shadow-sm"
+        onclick="firstJSBridgeListener('getLanguage')"
+      >
+        Get Language
+      </button>
+      <button
+        class="px-4 py-2 font-semibold text-sm bg-red-300 text-white rounded-full shadow-sm"
+        onclick="firstJSBridgeListener('getVersion')"
+      >
+        Get Version
+      </button>
+      <button
+        class="px-4 py-2 font-semibold text-sm bg-red-300 text-white rounded-full shadow-sm"
+        onclick="gotToCheckoutPage()"
+      >
+        Go to Checkout
+      </button>
+    </div>
+    <script>
+      const token =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2lkIjoiNWEzMDM1NDQ1NjMyMzU1NjUzNDY1OTNkIiwiYW1vdW50IjoiMTI1NTAwIiwicmVkaXJlY3RfdXJsIjoiaHR0cHM6Ly9taW5pLWFwcC10by1iZS1kaXNjdXNzZWQubWlzd2FnLmNvbS9jaGVja291dC1jb21wbGV0ZS9wYXltZW50L3ZlcmlmeT9zZXNzaW9uX2lkPTVhMzAzNTQ0NTYzMjM1NTY1MzQ2NTkzZCIsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjQ5MDIyfQ.GH8v-2OihpX8gOkfFc1jX2K1_hVhUz8Osc8iGzcMFi8';
+      let timeout = null;
+      const elementMemorization = {};
+
+      function gotToCheckoutPage() {
+        if (isAndroid()) {
+          Android.startCheckout(token);
+        } else {
+          setupWKWebViewJavascriptBridge((bridge) =>
+            bridge.callHandler('startCheckout', token)
+          );
+        }
+      }
+
+      function firstJSBridgeListener(jsBridgeHandler) {
+        if (!hasJSBridgeSupport()) {
+          return writeToTheDOM(
+            'JS Bridge is not supported please ensure to enable JSBridge first!',
+            'output-area',
+            null,
+            2000
+          );
+        }
+
+        if (isAndroid()) {
+          return handleJSBridgeResponse(Android[jsBridgeHandler]());
+        }
+
+        setupWKWebViewJavascriptBridge(function (bridge) {
+          bridge.callHandler(`${jsBridgeHandler}`, {}, handleJSBridgeResponse);
+        });
+      }
+
+      function hasJSBridgeSupport() {
+        return !!(window.Android || window.webkit?.messageHandlers);
+      }
+
+      function isAndroid() {
+        return /Android/.test(navigator.userAgent);
+      }
+
+      function handleJSBridgeResponse(response) {
+        writeToTheDOM(
+          `Received ${JSON.stringify(
+            response
+          )} from JS Bridge ${jsBridgeHandler}`
+        );
+      }
+
+      // JS Bridge initiation
+      function setupWKWebViewJavascriptBridge(callback) {
+        if (window.WKWebViewJavascriptBridge) {
+          return callback(WKWebViewJavascriptBridge);
+        }
+        if (window.WKWVJBCallbacks) {
+          return window.WKWVJBCallbacks.push(callback);
+        }
+        window.WKWVJBCallbacks = [callback];
+        window.webkit.messageHandlers.iOS_Native_InjectJavascript.postMessage(
+          null
+        );
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        const supportJSBridge = hasJSBridgeSupport();
+
+        writeToTheDOM(
+          supportJSBridge
+            ? 'JS-Bridge is supported! ✅'
+            : 'JS-Bridge is not supported! ❌',
+          'js-bridge-status',
+          supportJSBridge ? 'text-green-500' : 'text-red-500'
+        );
+      });
+
+      function writeToTheDOM(
+        message,
+        id = 'output-area',
+        style = null,
+        ttl = 0
+      ) {
+        if (!elementMemorization[id]) {
+          elementMemorization[id] = document.getElementById(id);
+        }
+
+        if (style) {
+          elementMemorization[id].classList.add(style);
+        }
+
+        elementMemorization[id].innerHTML = message;
+
+        if (ttl) {
+          if (timeout) {
+            clearTimeout(timeout);
+          }
+
+          timeout = setTimeout(
+            () => (elementMemorization[id].innerHTML = ''),
+            ttl
+          );
+        }
+      }
+    </script>
+  </body>
+</html>
